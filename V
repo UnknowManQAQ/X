@@ -1,0 +1,193 @@
+import Foundation
+
+// 定義角色類型
+enum CharacterType {
+    case warrior, mage, rogue
+}
+
+// 定義回合制 RPG 的角色類
+class RPGCharacter {
+    var name: String
+    var type: CharacterType
+    var level: Int
+    var maxHP: Int
+    var currentHP: Int
+    var attackPower: Int
+    var defensePower: Int
+    var experience: Int
+    var gold: Int
+    
+    init(name: String, type: CharacterType, level: Int, maxHP: Int, currentHP: Int, attackPower: Int, defensePower: Int, experience: Int, gold: Int) {
+        self.name = name
+        self.type = type
+        self.level = level
+        self.maxHP = maxHP
+        self.currentHP = currentHP
+        self.attackPower = attackPower
+        self.defensePower = defensePower
+        self.experience = experience
+        self.gold = gold
+    }
+    
+    func attack(target: RPGCharacter) {
+        let damage = max(attackPower - target.defensePower, 0)
+        target.takeDamage(damage: damage)
+    }
+    
+    func takeDamage(damage: Int) {
+        currentHP = max(currentHP - damage, 0)
+        if currentHP == 0 {
+            die()
+        }
+    }
+    
+    func die() {
+        print("\(name) has died!")
+    }
+    
+    func gainExperience(points: Int) {
+        experience += points
+        if experience >= level * 10 {
+            levelUp()
+        }
+    }
+    
+    func levelUp() {
+        level += 1
+        maxHP += 10
+        currentHP = maxHP
+        attackPower += 2
+        defensePower += 1
+        print("\(name) has leveled up to level \(level)!")
+    }
+    
+    func gainGold(amount: Int) {
+        gold += amount
+        print("\(name) has gained \(amount) gold!")
+    }
+}
+
+// 定義 Roguelike 的地圖類
+class DungeonMap {
+    var width: Int
+    var height: Int
+    var tiles: [[String]]
+    var playerX: Int
+    var playerY: Int
+    var enemies: [RPGCharacter]
+    
+    init(width: Int, height: Int) {
+        self.width = width
+        self.height = height
+        self.tiles = Array(repeating: Array(repeating: ".", count: width), count: height)
+        self.playerX = 0
+        self.playerY = 0
+        self.enemies = []
+    }
+    
+    func generateEnemies(num: Int) {
+        for _ in 1...num {
+            let type = [CharacterType.warrior, CharacterType.mage, CharacterType.rogue].randomElement()!
+            let name = "Enemy \(enemies.count + 1)"
+            let level = Int.random(in: 1...3)
+            let maxHP = 10 * level
+            let currentHP = maxHP
+            let attackPower = 2 * level
+            let defensePower = level
+            let experience = 5 * level
+            let gold = Int.random(in: 1...10)
+            let enemy = RPGCharacter(name: name, type: type, level: level, maxHP: maxHP, currentHP: currentHP, attackPower: attackPower, defensePower: defensePower, experience: experience, gold: gold)
+            enemies.append(enemy)
+        }
+    }
+    
+    func placePlayer() {
+        playerX = Int.random(in: 0..<width)
+        playerY = Int.random(in: 0..<height)
+        tiles[playerY][playerX] = "@"
+    }
+    
+    func placeEnemies() {
+        for enemy in enemies {
+            var x: Int
+            var y: Int
+            repeat {
+                x = Int.random(in: 0..<width)
+                y = Int.random(in: 0..<height)
+            } while tiles[y][x] != "."
+            enemy.currentHP = enemy.maxHP
+            tiles[y][x] = "E"
+        }
+    }
+    
+    func draw() {
+        for y in 0..<height {
+            for x in 0..<width {
+                print(tiles[y][x], terminator: "")}
+            print()
+        }
+    }
+    
+    func movePlayer(dx: Int, dy: Int) {
+        let newX = playerX + dx
+        let newY = playerY + dy
+        if newX < 0 || newX >= width || newY < 0 || newY >= height {
+            return
+        }
+        switch tiles[newY][newX] {
+        case ".":
+            tiles[playerY][playerX] = "."
+            playerX = newX
+            playerY = newY
+            tiles[playerY][playerX] = "@"
+        case "E":
+            let enemy = enemies.first(where: { $0.currentHP > 0 && $0.name == "Enemy \(enemies.index(of: $0)! + 1)" })
+            if let enemy = enemy {
+                player.attack(target: enemy)
+                if enemy.currentHP == 0 {
+                    tiles[newY][newX] = "."
+                    player.gainExperience(points: enemy.experience)
+                    player.gainGold(amount: enemy.gold)
+                }
+            }
+        default:
+            break
+        }
+    }
+    
+    func runGame() {
+        print("Welcome to the dungeon!")
+        generateEnemies(num: 5)
+        placePlayer()
+        placeEnemies()
+        draw()
+        while true {
+            print("What do you want to do? (w=up, a=left, s=down, d=right, q=quit)")
+            let input = readLine() ?? ""
+            switch input {
+            case "w":
+                movePlayer(dx: 0, dy: -1)
+            case "a":
+                movePlayer(dx: -1, dy: 0)
+            case "s":
+                movePlayer(dx: 0, dy: 1)
+            case "d":
+                movePlayer(dx: 1, dy: 0)
+            case "q":
+                return
+            default:
+                break
+            }
+            draw()
+        }
+    }
+}
+
+// 創建玩家角色
+let player = RPGCharacter(name: "Player", type: .warrior, level: 1, maxHP: 20, currentHP: 20, attackPower: 5, defensePower: 2, experience: 0, gold: 0)
+
+// 創建地圖
+let map = DungeonMap(width: 10, height: 10)
+
+// 運行遊戲
+map.runGame()
